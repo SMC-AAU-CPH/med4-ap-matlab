@@ -1,4 +1,4 @@
-Notebooks for the Medialogy MED4 course Audio Processing, by Jesper Kjær Nielsen and Cumhur Erkut.
+MATLAB notebooks for the Medialogy MED4 course Audio Processing (PAL), by Jesper Kjær Nielsen and Cumhur Erkut.
 Based on the book "Introduction to Audio Processing", M. G. Christensen, 2019, Springer
 https://www.springer.com/gp/book/9783030117801
 
