@@ -1,0 +1,190 @@
+# Created 2023-02-22 Wed 17:36
+#+title: MED4 L2 Dynamic range + Signal/ADSR Generation
+#+author: Cumhur Erkut
+* MED4 L2 Dynamic range + Signal/ADSR Generation
+https://mathworks.com/help/audio/ug/dynamic-range-control.html
+
+The dynamic range of a signal is the logarithmic ratio of maximum to minimum signal amplitude specified in dB.
+
+Dynamic range control is the adaptive adjustment of the dynamic range of a signal. 
+
+** Signal Generation and Visualization @
+
+
+** Simple example
+
+#+begin_src matlab
+load("gong");
+windowLength = 128;
+envelope(y,windowLength,'rms')
+#+end_src
+
+
+** DONE Compress Audio Signal
+Use dynamic range compression to attenuate the volume of loud sounds. 
+
+#+name: Set up the dsp.AudioFileReader and audioDeviceWriter System objects™.
+#+begin_src matlab
+frameLength = 1024;
+fileReader = dsp.AudioFileReader( ...
+    'Filename','RockDrums-44p1-stereo-11secs.mp3', ...
+    'SamplesPerFrame',frameLength);
+deviceWriter = audioDeviceWriter( ...
+    'SampleRate',fileReader.SampleRate);
+#+end_src
+
+
+#+begin_src matlab
+dRC = compressor(-15,7, ...
+    'KneeWidth',5, ...
+    'SampleRate',fileReader.SampleRate);
+#+end_src
+
+
+#+begin_src matlab
+scope = timescope( ...
+    'SampleRate',fileReader.SampleRate, ...
+    'TimeSpanSource','Property','TimeSpan',1, ...
+    'BufferLength',44100*4, ...
+    'YLimits',[-1,1], ...
+    'TimeSpanOverrunAction','Scroll', ...
+    'ShowGrid',true, ...
+    'LayoutDimensions',[2,1], ...
+    'NumInputPorts',2, ...
+    'Title', ...
+    ['Original vs. Compressed Audio (top)' ...
+1$    ' and Compressor Gain in dB (bottom)']);
+scope.ActiveDisplay = 2;
+scope.YLimits = [-4,0];
+scope.YLabel = 'Gain (dB)';
+#+end_src
+
+
+#+begin_src matlab
+while ~isDone(fileReader)
+    x = fileReader();
+    [y,g] = dRC(x);
+    deviceWriter(y);
+    scope([x(:,1),y(:,1)],g(:,1))
+end
+#+end_src
+
+
+#+begin_src matlab
+release(dRC)
+release(deviceWriter)
+release(scope)
+#+end_src
+
+#+begin_src matlab
+
+#+end_src
+
+
+
+** Expander
+
+https://mathworks.com/help/audio/ref/expander-system-object.html
+
+
+** noiseGate
+https://se.mathworks.com/help/releases/R2022b/audio/ref/noisegate-system-object.html
+
+*** Examples
+
+**** Gate Audio signal
+
+Use dynamic range gating to attenuate background noise from an audio signal.
+
+#+begin_src matlab
+frameLength = 1024;
+fileReader = dsp.AudioFileReader( ...
+    'Filename','Counting-16-44p1-mono-15secs.wav', ...
+    'SamplesPerFrame',frameLength);
+deviceWriter = audioDeviceWriter( ...
+    'SampleRate',fileReader.SampleRate);
+#+end_src
+
+
+#+name: Corrupt the audio signal with Gaussian noise. Play the audio.
+#+begin_src matlab
+while ~isDone(fileReader)
+    x = fileReader();
+    xCorrupted = x + (1e-2/4)*randn(frameLength,1);
+    deviceWriter(xCorrupted);
+end
+
+release(fileReader)
+#+end_src
+
+
+Set up a dynamic range gate with a threshold of -25 dB, an attack time of 0.01 seconds, a release time of 0.02 seconds, and a hold time of 0 seconds. Use the sample rate of your audio file reader.
+
+#+begin_src matlab
+gate = noiseGate(-25, ...
+    'AttackTime',0.01, ...
+    'ReleaseTime',0.02, ...
+    'HoldTime',0, ...
+    'SampleRate',fileReader.SampleRate);
+#+end_src
+
+Set up a time scope to visualize the signal before and after dynamic range gating.
+
+#+begin_src matlab
+scope = timescope( ...
+    'SampleRate',fileReader.SampleRate, ...
+    'TimeSpanOverrunAction','Scroll', ...
+    'TimeSpanSource','property',...
+    'TimeSpan',16, ...
+    'BufferLength',1.5e6, ...
+    'YLimits',[-1 1], ...
+    'ShowGrid',true, ...
+    'ShowLegend',true, ...
+    'Title','Corrupted vs. Gated Audio')
+#+end_src
+
+
+#+begin_src matlab
+while ~isDone(fileReader)
+    x = fileReader();
+    xCorrupted = x + (1e-2/4)*randn(frameLength,1);
+    y = gate(xCorrupted);
+    deviceWriter(y);
+    scope([xCorrupted,y]);
+end
+
+release(fileReader)
+release(gate)
+release(deviceWriter)
+release(scope)
+#+end_src
+
+
+#+begin_src matlab
+frameLength = 1024;
+fileReader = dsp.AudioFileReader('RockDrums-44p1-stereo-11secs.mp3', ...
+    'SamplesPerFrame',frameLength);
+deviceWriter = audioDeviceWriter('SampleRate',fileReader.SampleRate);
+
+dRG = noiseGate('SampleRate',fileReader.SampleRate);
+#+end_src
+
+
+#+begin_src matlab
+parameterTuner(dRG)
+#+end_src
+
+
+#+begin_src matlab
+while ~isDone(fileReader)
+    audioIn = fileReader();
+    audioOut = dRG(audioIn);
+    deviceWriter(audioOut);
+    drawnow limitrate % required to update parameter
+end
+#+end_src
+
+
+
+** A-Law or Mu-Law @
+https://se.mathworks.com/help/releases/R2022b/comm/source-coding.html
